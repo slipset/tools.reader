@@ -113,7 +113,11 @@
 (deftest read-set
   (is (= '#{} (read-string "#{}")))
   (is (= '#{foo bar} (read-string "#{foo bar}")))
-  (is (= '#{foo #{bar} baz} (read-string "#{foo #{bar} baz}"))))
+  (is (= '#{foo #{bar} baz} (read-string "#{foo #{bar} baz}")))
+  (is (thrown-with-msg? js/Error #"Duplicate key: foo"
+                        (read-string "#{foo foo}")))
+  (is (thrown-with-msg? js/Error #"Duplicate keys: foo, bar"
+                        (read-string "#{foo foo bar bar}"))))
 
 (deftest read-metadata
   (is (= {:foo true} (meta (read-string "^:foo 'bar"))))

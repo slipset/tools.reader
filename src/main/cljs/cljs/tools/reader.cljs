@@ -412,22 +412,35 @@
               (reset-meta! o m)))
           (reader-error rdr "Metadata can only be applied to IMetas"))))))
 
+(defn- duplicate-keys-error [coll]
+  (letfn [(duplicates [seq]
+            (for [[id freq] (frequencies seq)
+                  :when (> freq 1)]
+              id))]
+    (let [dups (duplicates coll)]
+      (apply str "Duplicate key"
+           (when (> (count dups) 1) "s")
+           ": " (interpose ", " dups)))))
+
 (defn- read-set
   [rdr _ opts pending-forms]
   (let [[start-line start-column] (starting-line-col-info rdr)
         ;; subtract 1 from start-column so it includes the # in the leading #{
         start-column (if start-column (int (dec start-column)))
-        the-set (set (read-delimited \} rdr opts pending-forms))
+        coll (read-delimited \} rdr opts pending-forms)
+        the-set (set coll)
         [end-line end-column] (ending-line-col-info rdr)]
-    (with-meta the-set
-      (when start-line
-        (merge
-         (when-let [file (get-file-name rdr)]
-           {:file file})
-         {:line start-line
-          :column start-column
-          :end-line end-line
-          :end-column end-column})))))
+    (if (= (count coll) (count the-set))
+      (with-meta the-set
+        (when start-line
+          (merge
+           (when-let [file (get-file-name rdr)]
+             {:file file})
+           {:line start-line
+            :column start-column
+            :end-line end-line
+            :end-column end-column})))
+      (reader-error rdr (duplicate-keys-error coll)))))
 
 (defn- read-discard
   "Read and discard the first object from rdr"
